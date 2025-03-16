@@ -1,4 +1,2 @@
 For downloading Library:
 cd C:\Users\Yan\myproject
-
-background-color: rgba(0, 0, 0, 0.35) = 30%
