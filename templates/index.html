@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Strand Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: rgb(255, 255, 255);
+            color: rgb(31, 32, 80);
+        }
+        .sidebar {
+            background-color: rgb(22, 23, 73);
+        }
+        @media (min-width: 768px) {
+            .logo {
+                width: 150px;
+            }
+        }
+    </style>
+</head>
+<body class="flex h-screen">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar w-64 p-4 text-white fixed md:relative h-full flex flex-col">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="School Logo" class="logo">
+        <h1 class="text-xl font-bold text-center mb-6">Dashboard</h1>
+        <nav class="w-full">
+            <ul class="space-y-4">
+                <li><a href="/dash" class="block hover:bg-blue-700 p-2 rounded">Home</a></li>
+                <li><a href="/" class="block hover:bg-blue-700 p-2 rounded">Analyze Grades</a></li>
+                <li><a href="#" class="block hover:bg-blue-700 p-2 rounded">Log out</a></li>
+            </ul>
+        </nav>
+    </aside>
+    
+    <!-- Main Content -->
+    <div class="flex-1 p-6 overflow-auto">
+        <header class="bg-gray-100 p-4 rounded-lg flex justify-between items-center mb-6">
+            <h2 class="text-lg font-semibold">Student Strand Analysis</h2>
+        </header>
+
+        <!-- File Upload Form -->
+        <div class="bg-gray-100 p-6 rounded-lg shadow-md text-center">
+            <form action="/upload" method="POST" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".xlsx" class="block mx-auto mb-4 border p-2 rounded">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Analyze Grades</button>
+            </form>
+        </div>
+
+        {% if graph_url %}
+        <div class="mt-6">
+            <div class="bg-green-100 p-6 rounded-lg border border-green-500 text-center">
+                <h2 class="text-green-700 font-bold text-lg">Overall Recommended Strand: {{ best_strand }}</h2>
+                <p>Based on average performance across grades 7-10</p>
+            </div>
+        
+            <div class="bg-white p-6 rounded-lg shadow-md mt-6 text-center">
+                <h2 class="font-bold text-lg">Overall Strand Performance Analysis</h2>
+                <img src="{{ graph_url }}" alt="Strand Analysis Graph" class="mx-auto mt-4">
+            </div>
+
+            {% if student_data %}
+            <h2 class="text-lg font-bold mt-6">Individual Student Analysis</h2>
+            <div class="overflow-auto">
+                <table class="w-full mt-4 border-collapse bg-white shadow-md rounded-lg">
+                    <thead>
+                        <tr class="bg-blue-600 text-white">
+                            <th class="p-3">Student No.</th>
+                            <th class="p-3">English</th>
+                            <th class="p-3">Filipino</th>
+                            <th class="p-3">Science</th>
+                            <th class="p-3">Math</th>
+                            <th class="p-3">Mapeh</th>
+                            <th class="p-3">TLE</th>
+                            <th class="p-3">Recommended Strand</th>
+                            <th class="p-3">Scores</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in student_data %}
+                        <tr class="border-b text-center hover:bg-gray-100">
+                            <td class="p-3">{{ student['Student Number'] }}</td>
+                            <td class="p-3">{{ student['Average English'] }}</td>
+                            <td class="p-3">{{ student['Average Filipino'] }}</td>
+                            <td class="p-3">{{ student['Average Science'] }}</td>
+                            <td class="p-3">{{ student['Average Math'] }}</td>
+                            <td class="p-3">{{ student['Average Mapeh'] }}</td>
+                            <td class="p-3">{{ student['Average TLE'] }}</td>
+                            <td class="p-3 font-bold text-green-700">{{ student['Recommended Strand'] }}</td>
+                            <td class="p-3 text-xs">
+                                <span class="block">STEM: {{ student['STEM Score'] }}</span>
+                                <span class="block">HUMSS: {{ student['HUMSS Score'] }}</span>
+                                <span class="block">ABM: {{ student['ABM Score'] }}</span>
+                                <span class="block">TVL: {{ student['TVL Score'] }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

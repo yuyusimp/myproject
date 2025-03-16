@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grading System Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-blue-900 text-white p-5 hidden md:block">
+            <h2 class="text-2xl font-bold mb-6">📚 Grading Dashboard</h2>
+            <nav>
+                <ul>
+                    <li class="py-2 px-4 hover:bg-blue-700 rounded cursor-pointer">🏠 Dashboard</li>
+                    <li class="py-2 px-4 hover:bg-blue-700 rounded cursor-pointer">📜 Grade Reports</li>
+                    <li class="py-2 px-4 hover:bg-blue-700 rounded cursor-pointer">⚙️ Settings</li>
+                    <li class="py-2 px-4 hover:bg-blue-700 rounded cursor-pointer">🚪 Logout</li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
+                <button onclick="showAlert()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Show Notification
+                </button>
+            </div>
+
+            <!-- Dashboard Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white p-6 rounded shadow">
+                    <h3 class="text-lg font-bold text-gray-600">Total Students</h3>
+                    <p class="text-2xl font-bold text-blue-600">120</p>
+                </div>
+                <div class="bg-white p-6 rounded shadow">
+                    <h3 class="text-lg font-bold text-gray-600">Pass Rate</h3>
+                    <p class="text-2xl font-bold text-green-600">85%</p>
+                </div>
+                <div class="bg-white p-6 rounded shadow">
+                    <h3 class="text-lg font-bold text-gray-600">Fail Rate</h3>
+                    <p class="text-2xl font-bold text-red-600">15%</p>
+                </div>
+            </div>
+
+            <!-- Grade Table -->
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-xl font-bold mb-4">Student Grades</h2>
+                <table class="w-full border-collapse border border-gray-300">
+                    <thead>
+                        <tr class="bg-gray-200">
+                            <th class="border p-3">Student</th>
+                            <th class="border p-3">Grade (%)</th>
+                            <th class="border p-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="text-center">
+                            <td class="border p-3">John Doe</td>
+                            <td class="border p-3">89</td>
+                            <td class="border p-3 text-green-600">Passed</td>
+                        </tr>
+                        <tr class="text-center">
+                            <td class="border p-3">Jane Smith</td>
+                            <td class="border p-3">72</td>
+                            <td class="border p-3 text-green-600">Passed</td>
+                        </tr>
+                        <tr class="text-center">
+                            <td class="border p-3">Mark Johnson</td>
+                            <td class="border p-3">58</td>
+                            <td class="border p-3 text-red-600">Failed</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function showAlert() {
+            Swal.fire({
+                title: "Notice",
+                text: "This is a sample grading system UI",
+                icon: "info",
+                confirmButtonText: "OK"
+            });
+        }
+    </script>
+</body>
+</html>
