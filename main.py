@@ -22,10 +22,13 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-
-@app.route('/')
+@app.route('/analyze')
 def index():
     return render_template('index.html')
+
+@app.route('/')
+def login():
+    return render_template('login.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_file():

@@ -6,12 +6,22 @@
     <title>Student Strand Analysis</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
+         body {
             background-color: rgb(255, 255, 255);
             color: rgb(31, 32, 80);
         }
         .sidebar {
             background-color: rgb(22, 23, 73);
+        }
+        .header, .widget {
+            background-color: rgb(235, 235, 235);
+            color: rgb(31, 32, 80);
+        }
+        .logo {
+            width: 120px;
+            height: auto;
+            margin: 0 auto 1rem;
+            transition: all 0.3s ease;
         }
         @media (min-width: 768px) {
             .logo {
@@ -28,7 +38,7 @@
         <nav class="w-full">
             <ul class="space-y-4">
                 <li><a href="/dash" class="block hover:bg-blue-700 p-2 rounded">Home</a></li>
-                <li><a href="/" class="block hover:bg-blue-700 p-2 rounded">Analyze Grades</a></li>
+                <li><a href="/analyze" class="block hover:bg-blue-700 p-2 rounded">Analyze Grades</a></li>
                 <li><a href="#" class="block hover:bg-blue-700 p-2 rounded">Log out</a></li>
             </ul>
         </nav>
