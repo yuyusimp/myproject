@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+    body {
+       background-color: rgb(255, 255, 255);
+       color: rgb(31, 32, 80);
+   }
+   .sidebar {
+       background-color: rgb(192, 206, 2);
+   }
+   .header, .widget {
+       background-color: rgb(235, 235, 235);
+       color: rgb(31, 32, 80);
+   }
+   .logo {
+       width: 120px;
+       height: auto;
+       margin: 0 auto 1rem;
+       transition: all 0.3s ease;
+   }
+   @media (min-width: 768px) {
+       .logo {
+           width: 150px;
+       }
+   }
+</style>
+</head>
+<body class="flex h-screen">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar w-64 p-4 text-white transition-transform transform md:translate-x-0 -translate-x-full fixed md:relative h-full flex flex-col items-center">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="School Logo" class="logo">
+        <h1 class="text-xl font-bold mb-6 text-center">Dashboard</h1>
+        <nav class="w-full">
+            <ul class="space-y-4">
+                <li>
+                    <a href="/dash" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7m-9 9v-6h4v6m5 0a2 2 0 002-2V10a2 2 0 00-.59-1.41l-7-7a2 2 0 00-2.82 0l-7 7A2 2 0 003 10v8a2 2 0 002 2h5z"></path>
+                        </svg>
+                        Home
+                    </a>
+                </li>
+                <li>
+                    <a href="/analyze" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 4h-8a2 2 0 01-2-2V4a2 2 0 012-2h8a2 2 0 012 2v14a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Analyze Grades
+                    </a>
+                </li>
+                <li>
+                    <a href="/users" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A4 4 0 017 14h10a4 4 0 011.879 3.804M12 12a4 4 0 100-8 4 4 0 000 8z"></path>
+                        </svg>
+                        View Users
+                    </a>
+                </li>
+                <li>
+                    <a href="/logout" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"></path>
+                        </svg>
+                        Log out
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+    <div class="flex-1 flex justify-center items-center p-6">
+        <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 text-center">Update User</h2>
+
+            <form action="/update_user1" method="POST" class="space-y-4">
+                <input type="hidden" name="user_id" value="{{ user[0] }}">
+                <input type="text" name="username" placeholder="Username" value="{{ user[1] }}"
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="email" name="email" placeholder="Email" value="{{ user[2] }}"
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" name="password" placeholder="Password" value=""
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit" 
+                    class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">
+                    Update
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+</body>
+</html>

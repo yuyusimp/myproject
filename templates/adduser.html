@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add User</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add spinner CSS -->
+    <style>
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen bg-gray-100">
+    <div class="bg-white p-8 rounded-lg shadow-md w-96 text-center">
+        <h2 class="text-2xl font-bold text-gray-700 mb-6">Create an Account</h2>
+
+        {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="p-2 mb-4 text-white bg-{{ 'red' if category == 'danger' else 'green' }}-500 rounded">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form action="/add" method="POST" class="space-y-4">
+            <input type="text" name="username" placeholder="Username" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="email" name="email" placeholder="Email" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="password" name="password" placeholder="Password" required class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button type="submit" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">Register</button>
+        </form>
+
+        <p class="mt-4 text-gray-600">Already have an account? <a href="/" class="text-blue-500">Login</a></p>
+    </div>
+    
+    <!-- Add spinner.js -->
+    <script src="{{ url_for('static', filename='js/spinner.js') }}"></script>
+</body>
+</html>

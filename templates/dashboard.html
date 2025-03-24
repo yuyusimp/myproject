@@ -5,13 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add spinner CSS -->
     <style>
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
         body {
             background-color: rgb(255, 255, 255);
             color: rgb(31, 32, 80);
         }
         .sidebar {
-            background-color: rgb(22, 23, 73);
+            background-color: rgb(192, 206, 2);
         }
         .header, .widget {
             background-color: rgb(235, 235, 235);
@@ -37,129 +45,77 @@
         <h1 class="text-xl font-bold mb-6 text-center">Dashboard</h1>
         <nav class="w-full">
             <ul class="space-y-4">
-                <li><a href="/dash" class="block hover:bg-blue-700 p-2 rounded">Home</a></li>
-                <li><a href="/analyze" class="block hover:bg-blue-700 p-2 rounded">Analyze Grades</a></li>
-                <li><a href="#" class="block hover:bg-blue-700 p-2 rounded">Log out</a></li>
+                <li>
+                    <a href="/dash" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7m-9 9v-6h4v6m5 0a2 2 0 002-2V10a2 2 0 00-.59-1.41l-7-7a2 2 0 00-2.82 0l-7 7A2 2 0 003 10v8a2 2 0 002 2h5z"></path>
+                        </svg>
+                        Home
+                    </a>
+                </li>
+                <li>
+                    <a href="/analyze" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 4h-8a2 2 0 01-2-2V4a2 2 0 012-2h8a2 2 0 012 2v14a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Analyze Grades
+                    </a>
+                </li>
+                <li>
+                    <a href="/users" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A4 4 0 017 14h10a4 4 0 011.879 3.804M12 12a4 4 0 100-8 4 4 0 000 8z"></path>
+                        </svg>
+                        View Users
+                    </a>
+                </li>
+                <li>
+                    <a href="/transaction_logs" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                        Transaction Logs
+                    </a>
+                </li>
+                <li>
+                    <a href="/logout" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"></path>
+                        </svg>
+                        Log out
+                    </a>
+                </li>
             </ul>
         </nav>
     </aside>
     
     <!-- Main Content -->
-    <div class="flex-1 p-6 overflow-auto">
-        <header class="header mb-6 p-4 rounded-lg flex justify-between items-center">
-            <h2 class="text-lg font-semibold">Welcome Back!</h2>
-            <button id="menu-toggle" class="md:hidden p-2 rounded hover:bg-yellow-400">☰</button>
-        </header>
+    <div class="container mx-auto p-6">
+        <h1 class="text-2xl font-bold mb-4">Student Strand Analysis (Grades 7-10)</h1>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="widget p-6 rounded-lg shadow-md">
-                <h3 class="font-bold mb-4">Student Statistics</h3>
-                <div id="studentStats">Loading...</div>
-            </div>
-            <div class="widget p-6 rounded-lg shadow-md">
-                <h3 class="font-bold mb-4">Grade Predictions</h3>
-                <div id="gradePredictions">Loading...</div>
-            </div>
-            <div class="widget p-6 rounded-lg shadow-md">
-                <h3 class="font-bold mb-4">Performance Trends</h3>
-                <div id="performanceTrends">Loading...</div>
-            </div>
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h3 class="text-xl font-semibold mb-2">Strand Recommendation System</h3>
+            <p>This application analyzes student grades using multinomial logistic regression to suggest the most suitable academic strand:</p>
+            <ul class="list-disc list-inside mt-2">
+                <li><strong>STEM</strong>: Science, Technology, Engineering, and Mathematics</li>
+                <li><strong>HUMSS</strong>: Humanities and Social Sciences</li>
+                <li><strong>ABM</strong>: Accountancy, Business, and Management</li>
+                <li><strong>TVL</strong>: Technical-Vocational-Livelihood</li>
+                <li><strong>GAS</strong>: General Academic Strand</li>
+            </ul>
+            <p class="mt-2">The algorithm considers all grades from 7th to 10th grade, with more weight given to recent grades and key subjects for each strand.</p>
+        </div>
+        
+        <div class="bg-blue-100 shadow-md rounded-lg p-6 border-l-4 border-blue-500">
+            <h3 class="text-xl font-semibold mb-2">DepEd Official Eligibility Criteria</h3>
+            <p>As per DepEd guidelines, the following criteria are applied in addition to the predictive model:</p>
+            <ul class="list-disc list-inside mt-2">
+                <li><strong>STEM</strong>: Final Grade in both Science and Math in Grade 10 must be 85 and above</li>
+                <li><strong>HUMSS, ABM, TVL, GAS</strong>: No minimum grade requirements</li>
+            </ul>
+            <p class="mt-2">The recommendation system will suggest an alternative strand if a student does not meet the eligibility criteria for their top predicted strand.</p>
         </div>
     </div>
-
-    <script>
-        // Toggle mobile menu
-        document.getElementById('menu-toggle').addEventListener('click', function() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('-translate-x-full');
-        });
-
-        // Fetch student statistics
-        fetch('/api/student_stats')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const stats = data.stats;
-                    const statsHtml = `
-                        <p class="mb-2">Total Students: ${stats.total_students}</p>
-                        <div class="space-y-2">
-                            <h4 class="font-semibold">Average Grades:</h4>
-                            ${Object.entries(stats.average_grades)
-                                .map(([subject, grade]) => `
-                                    <div class="flex justify-between">
-                                        <span>${subject}:</span>
-                                        <span>${grade.toFixed(1)}</span>
-                                    </div>
-                                `).join('')}
-                        </div>
-                    `;
-                    document.getElementById('studentStats').innerHTML = statsHtml;
-                }
-            })
-            .catch(error => {
-                document.getElementById('studentStats').innerHTML = 'Error loading statistics';
-            });
-
-        // Sample data for grade predictions
-        const sampleGrades = {
-            grades: {
-                'English': [85, 87, 86, 88],
-                'Filipino': [82, 84, 85, 83],
-                'Math': [90, 88, 89, 91],
-                'Science': [87, 86, 88, 89],
-                'Mapeh': [88, 89, 87, 88],
-                'TLE': [86, 85, 87, 86]
-            }
-        };
-
-        // Fetch grade predictions
-        fetch('/api/predict_grades', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(sampleGrades)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const predictions = data.predictions;
-                const predictionsHtml = `
-                    <div class="space-y-3">
-                        ${Object.entries(predictions)
-                            .map(([subject, pred]) => `
-                                <div class="border-b pb-2">
-                                    <div class="font-semibold">${subject}</div>
-                                    <div class="flex justify-between text-sm">
-                                        <span>Current: ${pred.current_grade.toFixed(1)}</span>
-                                        <span>Predicted: ${pred.predicted_next_grade.toFixed(1)}</span>
-                                        <span class="${pred.trend === 'up' ? 'text-green-600' : 'text-red-600'}">
-                                            ${pred.trend === 'up' ? '↑' : '↓'}
-                                        </span>
-                                    </div>
-                                </div>
-                            `).join('')}
-                    </div>
-                `;
-                document.getElementById('gradePredictions').innerHTML = predictionsHtml;
-            }
-        })
-        .catch(error => {
-            document.getElementById('gradePredictions').innerHTML = 'Error loading predictions';
-        });
-
-        // Sample performance trends data
-        const trendsHtml = `
-            <div class="text-center text-sm">
-                <p class="mb-2">Top Performing Subjects:</p>
-                <ul class="space-y-1">
-                    <li class="text-green-600">Math (↑ 3.2%)</li>
-                    <li class="text-green-600">Science (↑ 2.8%)</li>
-                    <li class="text-yellow-600">English (→ 0.5%)</li>
-                </ul>
-            </div>
-        `;
-        document.getElementById('performanceTrends').innerHTML = trendsHtml;
-    </script>
+    <script src="{{ url_for('static', filename='js/spinner.js') }}"></script>
 </body>
 </html>

@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Strand Analysis</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-         body {
+        body {
             background-color: rgb(255, 255, 255);
             color: rgb(31, 32, 80);
         }
         .sidebar {
-            background-color: rgb(22, 23, 73);
+            background-color: rgb(192, 206, 2);
         }
         .header, .widget {
             background-color: rgb(235, 235, 235);
@@ -32,14 +33,51 @@
 </head>
 <body class="flex h-screen">
     <!-- Sidebar -->
-    <aside id="sidebar" class="sidebar w-64 p-4 text-white fixed md:relative h-full flex flex-col">
+    <aside id="sidebar" class="sidebar w-64 p-4 text-white transition-transform transform md:translate-x-0 -translate-x-full fixed md:relative h-full flex flex-col items-center">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="School Logo" class="logo">
-        <h1 class="text-xl font-bold text-center mb-6">Dashboard</h1>
+        <h1 class="text-xl font-bold mb-6 text-center">Dashboard</h1>
         <nav class="w-full">
             <ul class="space-y-4">
-                <li><a href="/dash" class="block hover:bg-blue-700 p-2 rounded">Home</a></li>
-                <li><a href="/analyze" class="block hover:bg-blue-700 p-2 rounded">Analyze Grades</a></li>
-                <li><a href="#" class="block hover:bg-blue-700 p-2 rounded">Log out</a></li>
+                <li>
+                    <a href="/dash" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7m-9 9v-6h4v6m5 0a2 2 0 002-2V10a2 2 0 00-.59-1.41l-7-7a2 2 0 00-2.82 0l-7 7A2 2 0 003 10v8a2 2 0 002 2h5z"></path>
+                        </svg>
+                        Home
+                    </a>
+                </li>
+                <li>
+                    <a href="/analyze" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 4h-8a2 2 0 01-2-2V4a2 2 0 012-2h8a2 2 0 012 2v14a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Analyze Grades
+                    </a>
+                </li>
+                <li>
+                    <a href="/users" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A4 4 0 017 14h10a4 4 0 011.879 3.804M12 12a4 4 0 100-8 4 4 0 000 8z"></path>
+                        </svg>
+                        View Users
+                    </a>
+                </li>
+                <li>
+                    <a href="/transaction_logs" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                        Transaction Logs
+                    </a>
+                </li>
+                <li>
+                    <a href="/logout" class="flex items-center gap-2 hover:bg-blue-700 p-2 rounded">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"></path>
+                        </svg>
+                        Log out
+                    </a>
+                </li>
             </ul>
         </nav>
     </aside>
@@ -54,7 +92,12 @@
         <div class="bg-gray-100 p-6 rounded-lg shadow-md text-center">
             <form action="/upload" method="POST" enctype="multipart/form-data">
                 <input type="file" name="file" accept=".xlsx" class="block mx-auto mb-4 border p-2 rounded">
-                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Analyze Grades</button>
+                <button type="submit" class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
+                    </svg>
+                    Analyze Grades
+                </button>
             </form>
         </div>
 
@@ -66,25 +109,29 @@
             </div>
         
             <div class="bg-white p-6 rounded-lg shadow-md mt-6 text-center">
-                <h2 class="font-bold text-lg">Overall Strand Performance Analysis</h2>
-                <img src="{{ graph_url }}" alt="Strand Analysis Graph" class="mx-auto mt-4">
+                <h2 class="font-bold text-lg mb-4">Overall Strand Performance Analysis</h2>
+                <img src="data:image/png;base64,{{ graph_url }}" class="mx-auto" alt="Strand Analysis Charts">
             </div>
 
             {% if student_data %}
             <h2 class="text-lg font-bold mt-6">Individual Student Analysis</h2>
-            <div class="overflow-auto">
+            <div class="overflow-x-auto">
                 <table class="w-full mt-4 border-collapse bg-white shadow-md rounded-lg">
                     <thead>
                         <tr class="bg-blue-600 text-white">
                             <th class="p-3">Student No.</th>
                             <th class="p-3">English</th>
                             <th class="p-3">Filipino</th>
-                            <th class="p-3">Science</th>
                             <th class="p-3">Math</th>
+                            <th class="p-3">Science</th>
+                            <th class="p-3">ESP</th>
+                            <th class="p-3">ICF</th>
+                            <th class="p-3">TVE</th>
+                            <th class="p-3">AP</th>
                             <th class="p-3">Mapeh</th>
-                            <th class="p-3">TLE</th>
+                            <th class="p-3">Tec. Drawing</th>
                             <th class="p-3">Recommended Strand</th>
-                            <th class="p-3">Scores</th>
+                            <th class="p-3">Strand Scores</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -93,16 +140,21 @@
                             <td class="p-3">{{ student['Student Number'] }}</td>
                             <td class="p-3">{{ student['Average English'] }}</td>
                             <td class="p-3">{{ student['Average Filipino'] }}</td>
-                            <td class="p-3">{{ student['Average Science'] }}</td>
                             <td class="p-3">{{ student['Average Math'] }}</td>
+                            <td class="p-3">{{ student['Average Science'] }}</td>
+                            <td class="p-3">{{ student['Average ESP'] }}</td>
+                            <td class="p-3">{{ student['Average ICF'] }}</td>
+                            <td class="p-3">{{ student['Average TVE'] }}</td>
+                            <td class="p-3">{{ student['Average AP'] }}</td>
                             <td class="p-3">{{ student['Average Mapeh'] }}</td>
-                            <td class="p-3">{{ student['Average TLE'] }}</td>
+                            <td class="p-3">{{ student['Average Tec. Drawing'] }}</td>
                             <td class="p-3 font-bold text-green-700">{{ student['Recommended Strand'] }}</td>
                             <td class="p-3 text-xs">
-                                <span class="block">STEM: {{ student['STEM Score'] }}</span>
-                                <span class="block">HUMSS: {{ student['HUMSS Score'] }}</span>
-                                <span class="block">ABM: {{ student['ABM Score'] }}</span>
-                                <span class="block">TVL: {{ student['TVL Score'] }}</span>
+                                {% for strand in strands %}
+                                <div class="mb-1">
+                                    <span class="font-semibold">{{ strand }}:</span> {{ student[strand + ' Score'] }}
+                                </div>
+                                {% endfor %}
                             </td>
                         </tr>
                         {% endfor %}
