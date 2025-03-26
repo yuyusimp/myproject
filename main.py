@@ -285,18 +285,47 @@ def process_excel(df, filename="Excel Upload"):
                         avg_key = f'Average {subject}'
                         student_dict[avg_key] = student_dict.get(subject, 0)
                     
-                    # Generate mock assessment scores for demonstration
-                    # In a real application, these would come from actual assessment data
+                    # Generate assessment scores based on student's grades
+                    # This creates a correlation between academic performance and assessment results
+                    
+                    # Calculate assessment scores based on relevant subject grades
                     assessment_scores = {
-                        'STEM': random.randint(70, 99),
-                        'HUMSS': random.randint(70, 99),
-                        'ABM': random.randint(70, 99),
-                        'TVL': random.randint(70, 99),
-                        'GAS': random.randint(70, 99)
+                        'STEM': min(99, max(50, round((student_dict.get('Average Math', 0) + student_dict.get('Average Science', 0)) / 2))),
+                        'HUMSS': min(99, max(50, round((student_dict.get('Average English', 0) + student_dict.get('Average Filipino', 0) + 
+                                student_dict.get('Average Social Science', 0)) / 3))),
+                        'ABM': min(99, max(50, round((student_dict.get('Average Math', 0) + student_dict.get('Average English', 0)) / 2))),
+                        'TVL': min(99, max(50, round((student_dict.get('Average TLE', 0) + student_dict.get('Average Math', 0)) / 2))),
+                        'GAS': min(99, max(50, round(sum([student_dict.get(f'Average {subj}', 0) for subj in 
+                                 ['Math', 'Science', 'English', 'Filipino', 'Social Science']]) / 5))),
+                        'SPORTS': min(99, max(50, round(student_dict.get('Average PE', 0)))),
+                        'ARTS_DESIGN': min(99, max(50, round((student_dict.get('Average MAPEH', 0) + student_dict.get('Average Arts', 0)) / 2)))
                     }
                     
                     # Add assessment scores to student dictionary for reference
                     student_dict.update(assessment_scores)
+                    
+                    # Apply DepEd criteria for SHS tracks/strands eligibility
+                    eligible_tracks = []
+                    
+                    # STEM criteria: 85+ in both Science and Math, 86+ percentile in STEM assessment
+                    math_grade = student_dict.get('Average Math', student_dict.get('Math', 0))
+                    science_grade = student_dict.get('Average Science', student_dict.get('Science', 0))
+                    
+                    if math_grade >= 85 and science_grade >= 85 and assessment_scores['STEM'] >= 86:
+                        eligible_tracks.append('STEM')
+                    
+                    # Sports and Arts & Design criteria: 51+ percentile in assessment
+                    if assessment_scores['SPORTS'] >= 51:
+                        eligible_tracks.append('SPORTS (Subject to skills assessment)')
+                        
+                    if assessment_scores['ARTS_DESIGN'] >= 51:
+                        eligible_tracks.append('ARTS_DESIGN (Subject to skills assessment)')
+                    
+                    # HUMSS, ABM, TVL, GAS: No minimum requirements
+                    eligible_tracks.extend(['HUMSS', 'ABM', 'TVL', 'GAS'])
+                    
+                    # Add eligible tracks to student dictionary
+                    student_dict['eligible_tracks'] = eligible_tracks
                     
                     # Prepare features for prediction
                     features = prepare_features(student_dict)
@@ -377,7 +406,7 @@ def process_excel(df, filename="Excel Upload"):
                     
                     student_row = {'Student No': student_no}
                     
-                    # Process each subject by taking the Grade 10 value if available
+                    # Process each subject
                     for subject in subjects:
                         # Find columns that match this subject
                         subject_cols = [col for col in df.columns if subject in str(col)]
@@ -461,18 +490,47 @@ def process_excel(df, filename="Excel Upload"):
                         for subject in expected_columns[1:]:
                             student_dict[f'Average {subject}'] = student_dict[subject]
                         
-                        # Generate mock assessment scores for demonstration
-                        # In a real application, these would come from actual assessment data
+                        # Generate assessment scores based on student's grades
+                        # This creates a correlation between academic performance and assessment results
+                        
+                        # Calculate assessment scores based on relevant subject grades
                         assessment_scores = {
-                            'STEM': random.randint(70, 99),
-                            'HUMSS': random.randint(70, 99),
-                            'ABM': random.randint(70, 99),
-                            'TVL': random.randint(70, 99),
-                            'GAS': random.randint(70, 99)
+                            'STEM': min(99, max(50, round((student_dict.get('Average Math', 0) + student_dict.get('Average Science', 0)) / 2))),
+                            'HUMSS': min(99, max(50, round((student_dict.get('Average English', 0) + student_dict.get('Average Filipino', 0) + 
+                                    student_dict.get('Average Social Science', 0)) / 3))),
+                            'ABM': min(99, max(50, round((student_dict.get('Average Math', 0) + student_dict.get('Average English', 0)) / 2))),
+                            'TVL': min(99, max(50, round((student_dict.get('Average TLE', 0) + student_dict.get('Average Math', 0)) / 2))),
+                            'GAS': min(99, max(50, round(sum([student_dict.get(f'Average {subj}', 0) for subj in 
+                                     ['Math', 'Science', 'English', 'Filipino', 'Social Science']]) / 5))),
+                            'SPORTS': min(99, max(50, round(student_dict.get('Average PE', 0)))),
+                            'ARTS_DESIGN': min(99, max(50, round((student_dict.get('Average MAPEH', 0) + student_dict.get('Average Arts', 0)) / 2)))
                         }
                         
                         # Add assessment scores to student dictionary for reference
                         student_dict.update(assessment_scores)
+                        
+                        # Apply DepEd criteria for SHS tracks/strands eligibility
+                        eligible_tracks = []
+                        
+                        # STEM criteria: 85+ in both Science and Math, 86+ percentile in STEM assessment
+                        math_grade = student_dict.get('Average Math', student_dict.get('Math', 0))
+                        science_grade = student_dict.get('Average Science', student_dict.get('Science', 0))
+                        
+                        if math_grade >= 85 and science_grade >= 85 and assessment_scores['STEM'] >= 86:
+                            eligible_tracks.append('STEM')
+                        
+                        # Sports and Arts & Design criteria: 51+ percentile in assessment
+                        if assessment_scores['SPORTS'] >= 51:
+                            eligible_tracks.append('SPORTS (Subject to skills assessment)')
+                            
+                        if assessment_scores['ARTS_DESIGN'] >= 51:
+                            eligible_tracks.append('ARTS_DESIGN (Subject to skills assessment)')
+                        
+                        # HUMSS, ABM, TVL, GAS: No minimum requirements
+                        eligible_tracks.extend(['HUMSS', 'ABM', 'TVL', 'GAS'])
+                        
+                        # Add eligible tracks to student dictionary
+                        student_dict['eligible_tracks'] = eligible_tracks
                         
                         # Prepare features for prediction
                         features = prepare_features(student_dict)
