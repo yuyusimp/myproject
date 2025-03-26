@@ -4,12 +4,11 @@ DROP TABLE IF EXISTS users;
 
 -- Create users table
 CREATE TABLE users (
-    user_id SERIAL PRIMARY KEY,
-    username VARCHAR(100) UNIQUE NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    password_hash VARCHAR(200) NOT NULL,
-    role VARCHAR(50) DEFAULT 'user',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	user_id SERIAL PRIMARY KEY,
+	username VARCHAR(100) UNIQUE NOT NULL,
+	email VARCHAR(255) NOT NULL,
+	password_hash TEXT NOT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create transaction_logs table

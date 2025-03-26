@@ -29,11 +29,53 @@
                 width: 150px;
             }
         }
+        
+        /* Enhanced responsive styles */
+        @media (max-width: 640px) {
+            .responsive-table {
+                display: block;
+                width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .responsive-container {
+                padding: 0.75rem;
+            }
+            .responsive-card {
+                padding: 1rem;
+            }
+            .responsive-chart {
+                max-width: 100%;
+                height: auto;
+            }
+        }
+        
+        /* Mobile menu toggle */
+        #mobile-menu-btn {
+            display: block;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 50;
+        }
+        
+        @media (min-width: 768px) {
+            #mobile-menu-btn {
+                display: none;
+            }
+        }
     </style>
 </head>
-<body class="flex h-screen">
+<body class="flex flex-col md:flex-row h-screen">
+    <!-- Mobile menu button -->
+    <button id="mobile-menu-btn" class="md:hidden bg-blue-500 text-white p-2 rounded-md shadow-md">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+    </button>
+    
     <!-- Sidebar -->
-    <aside id="sidebar" class="sidebar w-64 p-4 text-white transition-transform transform md:translate-x-0 -translate-x-full fixed md:relative h-full flex flex-col items-center">
+    <aside id="sidebar" class="sidebar w-64 p-4 text-white transition-transform transform -translate-x-full md:translate-x-0 fixed md:relative h-full flex flex-col items-center z-40">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="School Logo" class="logo">
         <h1 class="text-xl font-bold mb-6 text-center">Dashboard</h1>
         <nav class="w-full">
@@ -83,15 +125,15 @@
     </aside>
     
     <!-- Main Content -->
-    <div class="flex-1 p-6 overflow-auto">
-        <header class="bg-gray-100 p-4 rounded-lg flex justify-between items-center mb-6">
-            <h2 class="text-lg font-semibold">Student Strand Analysis</h2>
+    <div class="flex-1 p-3 md:p-6 overflow-auto w-full mt-12 md:mt-0">
+        <header class="bg-gray-100 p-3 md:p-4 rounded-lg flex justify-between items-center mb-4 md:mb-6">
+            <h2 class="text-base md:text-lg font-semibold">Student Strand Analysis</h2>
         </header>
 
         <!-- File Upload Form -->
-        <div class="bg-gray-100 p-6 rounded-lg shadow-md text-center">
+        <div class="bg-gray-100 p-4 md:p-6 rounded-lg shadow-md text-center responsive-card">
             <form action="/upload" method="POST" enctype="multipart/form-data">
-                <input type="file" name="file" accept=".xlsx" class="block mx-auto mb-4 border p-2 rounded">
+                <input type="file" name="file" accept=".xlsx" class="block w-full mx-auto mb-4 border p-2 rounded">
                 <button type="submit" class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
@@ -102,60 +144,54 @@
         </div>
 
         {% if graph_url %}
-        <div class="mt-6">
-            <div class="bg-green-100 p-6 rounded-lg border border-green-500 text-center">
-                <h2 class="text-green-700 font-bold text-lg">Overall Recommended Strand: {{ best_strand }}</h2>
-                <p>Based on average performance across grades 7-10</p>
+        <div class="mt-4 md:mt-6">
+            <div class="bg-green-100 p-3 md:p-6 rounded-lg border border-green-500 text-center responsive-card">
+                <h2 class="text-green-700 font-bold text-base md:text-lg">Overall Recommended Strand: {{ best_strand }}</h2>
+                <p class="text-sm md:text-base">Based on average performance across grades 7-10</p>
             </div>
         
-            <div class="bg-white p-6 rounded-lg shadow-md mt-6 text-center">
-                <h2 class="font-bold text-lg mb-4">Overall Strand Performance Analysis</h2>
-                <img src="data:image/png;base64,{{ graph_url }}" class="mx-auto" alt="Strand Analysis Charts">
+            <div class="bg-white p-3 md:p-6 rounded-lg shadow-md mt-4 md:mt-6 text-center responsive-card">
+                <h2 class="font-bold text-base md:text-lg mb-3 md:mb-4">Overall Strand Performance Analysis</h2>
+                <img src="data:image/png;base64,{{ graph_url }}" class="mx-auto responsive-chart" alt="Strand Analysis Charts">
             </div>
 
             {% if student_data %}
-            <h2 class="text-lg font-bold mt-6">Individual Student Analysis</h2>
-            <div class="overflow-x-auto">
-                <table class="w-full mt-4 border-collapse bg-white shadow-md rounded-lg">
+            <h2 class="text-base md:text-lg font-bold mt-4 md:mt-6">Individual Student Analysis</h2>
+            <div class="overflow-x-auto responsive-table">
+                <table class="w-full mt-3 md:mt-4 border-collapse bg-white shadow-md rounded-lg">
                     <thead>
                         <tr class="bg-blue-600 text-white">
-                            <th class="p-3">Student No.</th>
-                            <th class="p-3">English</th>
-                            <th class="p-3">Filipino</th>
-                            <th class="p-3">Math</th>
-                            <th class="p-3">Science</th>
-                            <th class="p-3">ESP</th>
-                            <th class="p-3">ICF</th>
-                            <th class="p-3">TVE</th>
-                            <th class="p-3">AP</th>
-                            <th class="p-3">Mapeh</th>
-                            <th class="p-3">Tec. Drawing</th>
-                            <th class="p-3">Recommended Strand</th>
-                            <th class="p-3">Strand Scores</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">Student No.</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">English</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">Filipino</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">Math</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">Science</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">ESP</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">ICF</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">TVL</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">AP</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">Mapeh</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">Tec. Drawing</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">Recommended Strand</th>
+                            <th class="p-2 md:p-3 text-xs md:text-sm">Strand Scores</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for student in student_data %}
                         <tr class="border-b text-center hover:bg-gray-100">
-                            <td class="p-3">{{ student['Student Number'] }}</td>
-                            <td class="p-3">{{ student['Average English'] }}</td>
-                            <td class="p-3">{{ student['Average Filipino'] }}</td>
-                            <td class="p-3">{{ student['Average Math'] }}</td>
-                            <td class="p-3">{{ student['Average Science'] }}</td>
-                            <td class="p-3">{{ student['Average ESP'] }}</td>
-                            <td class="p-3">{{ student['Average ICF'] }}</td>
-                            <td class="p-3">{{ student['Average TVE'] }}</td>
-                            <td class="p-3">{{ student['Average AP'] }}</td>
-                            <td class="p-3">{{ student['Average Mapeh'] }}</td>
-                            <td class="p-3">{{ student['Average Tec. Drawing'] }}</td>
-                            <td class="p-3 font-bold text-green-700">{{ student['Recommended Strand'] }}</td>
-                            <td class="p-3 text-xs">
-                                {% for strand in strands %}
-                                <div class="mb-1">
-                                    <span class="font-semibold">{{ strand }}:</span> {{ student[strand + ' Score'] }}
-                                </div>
-                                {% endfor %}
-                            </td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Student Number'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Average English'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Average Filipino'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Average Math'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Average Science'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Average ESP'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Average ICF'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Average TVL'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Average AP'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Average Mapeh'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm">{{ student['Average Tec. Drawing'] }}</td>
+                            <td class="p-2 md:p-3 text-xs md:text-sm font-bold text-green-700">{{ student['Recommended Strand'] }}</td>
+                            <td class="p-2 md:p-3 text-xs">{{ student['Strand Scores'] }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -165,5 +201,13 @@
         </div>
         {% endif %}
     </div>
+    
+    <!-- Mobile menu toggle script -->
+    <script>
+        document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        });
+    </script>
 </body>
 </html>

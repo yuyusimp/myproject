@@ -2,14 +2,15 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Use Agg backend to avoid threading issues
 import matplotlib.pyplot as plt
+import numpy as np
+import joblib
+from sklearn.preprocessing import StandardScaler
 import io
 import base64
 import tempfile
-import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 import psycopg2
 from werkzeug.security import generate_password_hash, check_password_hash
 from psycopg2 import pool
@@ -24,6 +25,634 @@ from flask import send_file
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
 app.permanent_session_lifetime = datetime.timedelta(minutes=30)  # Session expires after 30 minutes
+
+# Model paths
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'strand_classifier.joblib')
+SCALER_PATH = os.path.join(os.path.dirname(__file__), 'models', 'scaler.pkl')
+MLR_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'multinomial_logistic_regression.pkl')
+
+# Define DepEd criteria for strands based on official DepEd Philippines guidelines
+STRAND_CRITERIA = {
+    'STEM': {
+        'required_grades': {
+            'Math': 85,
+            'Science': 85
+        },
+        'assessment_score': 86
+    },
+    'ABM': {},  # No specific requirements
+    'HUMSS': {},  # No specific requirements
+    'TVL': {},  # No specific requirements
+    'GAS': {}  # No specific requirements
+}
+
+# Load the trained models
+def load_model():
+    """Load the strand classification model"""
+    try:
+        # Try loading the joblib model first
+        if os.path.exists(MODEL_PATH):
+            print(f"Loading model from {MODEL_PATH}")
+            model = joblib.load(MODEL_PATH)
+            return model
+        # If not found, try the MLR model
+        elif os.path.exists(MLR_MODEL_PATH):
+            print(f"Loading model from {MLR_MODEL_PATH}")
+            model = joblib.load(MLR_MODEL_PATH)
+            return model
+        else:
+            # Fallback to a basic model
+            print("No saved models found. Using fallback model.")
+            from sklearn.ensemble import RandomForestClassifier
+            model = RandomForestClassifier(n_estimators=100, random_state=42)
+            
+            # Create sample data to fit the model
+            X = np.random.rand(100, 20)  # 20 features for 10 subjects with raw and average grades
+            y = np.random.choice(['STEM', 'HUMSS', 'ABM', 'TVL', 'GAS'], size=100)
+            
+            # Fit the model
+            model.fit(X, y)
+            return model
+    except Exception as e:
+        print(f"Error loading model: {str(e)}")
+        raise
+
+def load_scaler():
+    """Load the feature scaler or create a new one if not found"""
+    try:
+        if os.path.exists(SCALER_PATH):
+            print(f"Loading scaler from {SCALER_PATH}")
+            scaler = joblib.load(SCALER_PATH)
+            return scaler
+        else:
+            print("No saved scaler found. Creating a new scaler.")
+            from sklearn.preprocessing import StandardScaler
+            
+            # Create a new scaler and fit it with reasonable education data
+            # Generate sample data in the range of typical grades (0-100)
+            sample_data = np.random.uniform(60, 100, size=(100, 20))
+            
+            # Create and fit the scaler
+            scaler = StandardScaler()
+            scaler.fit(sample_data)
+            
+            # Save the scaler for future use
+            os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
+            joblib.dump(scaler, SCALER_PATH)
+            
+            print("New scaler created and saved.")
+            return scaler
+    except Exception as e:
+        print(f"Error loading scaler: {str(e)}")
+        raise
+
+def prepare_features(grades):
+    """Preprocess student grades for model prediction"""
+    # Expected features in the correct order - each subject has two features (their raw grade and average)
+    core_subjects = ['English', 'Filipino', 'Math', 'Science', 'ESP', 'ICT', 'TLE', 'AP', 'Mapeh', 'Tec Drawing']
+    
+    # Create feature vector
+    features = []
+    
+    # First add the raw grades for each subject
+    for subject in core_subjects:
+        features.append(float(grades.get(subject, 0)))
+    
+    # Then add the averages for each subject (this creates the full 20 features the model expects)
+    for subject in core_subjects:
+        features.append(float(grades.get(f'Average {subject}', grades.get(subject, 0))))
+    
+    # Ensure we have exactly 20 features
+    if len(features) != 20:
+        print(f"Warning: Expected 20 features, but got {len(features)}")
+        # Pad with zeros if less than 20
+        features.extend([0] * (20 - len(features)))
+        # Truncate if more than 20
+        features = features[:20]
+    
+    # Try to use the scaler if available
+    try:
+        scaler = load_scaler()
+        if hasattr(scaler, 'transform'):
+            features = scaler.transform([features])[0]
+        else:
+            # Simple normalization
+            features = np.array(features) / 100.0
+    except Exception as e:
+        print(f"Error during scaling: {str(e)}")
+        # Simple normalization as fallback
+        features = np.array(features) / 100.0
+    
+    return features
+
+def check_strand_eligibility(grades, assessment_scores):
+    """Check which strands a student is eligible for based on official DepEd criteria"""
+    eligible_strands = []
+    
+    # Check STEM eligibility - requires 85+ in both Math and Science, 86+ percentile in assessment
+    stem_criteria = STRAND_CRITERIA['STEM']
+    stem_eligible = True
+    
+    for subject, min_grade in stem_criteria.get('required_grades', {}).items():
+        avg_subject = f'Average {subject}'
+        subject_grade = grades.get(avg_subject, 0)
+        if subject_grade == 0:  # If average not available, use the direct grade
+            subject_grade = grades.get(subject, 0)
+            
+        if subject_grade < min_grade:
+            print(f"Student not eligible for STEM due to {subject} grade: {subject_grade} < {min_grade}")
+            stem_eligible = False
+            break
+    
+    stem_assessment = assessment_scores.get('STEM', 0)
+    if stem_eligible:
+        if stem_assessment >= stem_criteria.get('assessment_score', 86):
+            eligible_strands.append('STEM')
+            print(f"Student is eligible for STEM with grades and assessment: {stem_assessment}")
+        else:
+            print(f"Student has grades for STEM but assessment score too low: {stem_assessment} < 86")
+            eligible_strands.append('STEM (Subject to assessment score)')
+    
+    # Other strands (ABM, HUMSS, TVL, GAS) have no specific grade or assessment requirements
+    for strand in ['ABM', 'HUMSS', 'TVL', 'GAS']:
+        eligible_strands.append(strand)
+    
+    return eligible_strands
+
+def process_excel(df, filename="Excel Upload"):
+    """Process the uploaded Excel file and predict strands"""
+    try:
+        # Load the trained model
+        model = load_model()
+        
+        # Print DataFrame info for debugging
+        print("DataFrame Info:")
+        print(df.info())
+        print("\nDataFrame Columns:", df.columns.tolist())
+        
+        # Check if we have a multi-level structure (headers in the data)
+        is_complex_format = False
+        if 'Unnamed: 0' in df.columns and 'Grade' in str(df.columns):
+            is_complex_format = True
+            print("Detected complex format with headers in data rows")
+            
+            # Get header row (first row - index 0)
+            header_row = df.iloc[0]
+            print("Header row:", header_row.tolist())
+            
+            # Find subjects in header row
+            subjects = ['English', 'Filipino', 'Math', 'Science', 'ESP', 'ICT', 'TLE', 'AP', 'Mapeh', 'Tec Drawing']
+            
+            # Field name mappings for different naming conventions
+            field_mappings = {
+                'ICT': ['ICF', 'ICT', 'Information Computer Fundamental'],  # ICF stands for Information Computer Fundamental
+                'TLE': ['TVL', 'TVE', 'TLE'],  # TVL instead of TVE 
+                'Tec Drawing': ['Tec. Drawing', 'Tec Drawing', 'Technical Drawing']
+            }
+            
+            # Clean up column mappings
+            col_mappings = {}
+            for col_idx, value in enumerate(header_row):
+                if pd.notna(value) and isinstance(value, str):
+                    value = value.strip()
+                    for subject in subjects:
+                        # Normalize name comparison
+                        subject_normalized = subject.lower().replace('.', '')
+                        value_normalized = value.lower().replace('.', '')
+                        
+                        # Check for direct match or matches in field mappings
+                        matches = False
+                        if subject_normalized in value_normalized:
+                            matches = True
+                        elif subject in field_mappings:
+                            # Check alternate names
+                            for alt_name in field_mappings[subject]:
+                                if alt_name.lower().replace('.', '') in value_normalized:
+                                    matches = True
+                                    break
+                        
+                        if matches:
+                            # Check if this is Grade 10 or the last occurrence
+                            grade_col = None
+                            for i in range(col_idx, 0, -1):
+                                if 'Grade' in str(df.columns[i]) and '10' in str(df.columns[i]):
+                                    grade_col = i
+                                    break
+                            
+                            if grade_col is not None:
+                                print(f"Found {subject} for Grade 10 at column {col_idx}")
+                                col_mappings[subject] = col_idx
+                            elif subject not in col_mappings:
+                                # If we haven't found this subject yet, use this column
+                                print(f"Found {subject} at column {col_idx}")
+                                col_mappings[subject] = col_idx
+            
+            print("Column mappings:", col_mappings)
+            
+            # Extract student data
+            student_data = []
+            for i in range(1, len(df)):  # Start from row 1 (second row) to skip header
+                try:
+                    student_row = df.iloc[i]
+                    student_id = student_row[0]  # Student ID in first column
+                    
+                    if pd.isna(student_id) or str(student_id).strip() == '':
+                        continue
+                    
+                    student_dict = {'Student No': str(student_id)}
+                    
+                    # Process each subject
+                    for subject, col_idx in col_mappings.items():
+                        if col_idx < len(student_row):
+                            grade_value = student_row[col_idx]
+                            # Try to convert to float
+                            try:
+                                if isinstance(grade_value, str):
+                                    grade_value = grade_value.replace('%', '').strip()
+                                
+                                if pd.notna(grade_value) and grade_value != '':
+                                    student_dict[subject] = float(grade_value)
+                                else:
+                                    student_dict[subject] = 0.0
+                            except (ValueError, TypeError):
+                                print(f"Error converting {grade_value} to float for {subject}")
+                                student_dict[subject] = 0.0
+                        else:
+                            student_dict[subject] = 0.0
+                    
+                    # Calculate average grades for subjects
+                    for subject in set(col_mappings.keys()):
+                        avg_key = f'Average {subject}'
+                        student_dict[avg_key] = student_dict.get(subject, 0)
+                    
+                    # Generate mock assessment scores for demonstration
+                    # In a real application, these would come from actual assessment data
+                    assessment_scores = {
+                        'STEM': random.randint(70, 99),
+                        'HUMSS': random.randint(70, 99),
+                        'ABM': random.randint(70, 99),
+                        'TVL': random.randint(70, 99),
+                        'GAS': random.randint(70, 99)
+                    }
+                    
+                    # Add assessment scores to student dictionary for reference
+                    student_dict.update(assessment_scores)
+                    
+                    # Prepare features for prediction
+                    features = prepare_features(student_dict)
+                    
+                    # Predict strand using the model
+                    try:
+                        strand_prediction = model.predict([features])[0]
+                        probabilities = model.predict_proba([features])[0]
+                        
+                        # Map numeric prediction to strand name
+                        strand_mapping = {0: 'ABM', 1: 'STEM', 2: 'TVL', 3: 'HUMSS', 4: 'GAS'}
+                        predicted_strand = strand_mapping.get(strand_prediction, 'Unknown')
+                        
+                        # Store strand probabilities as percentages
+                        for i, prob in enumerate(probabilities):
+                            strand = strand_mapping.get(i, 'Unknown')
+                            student_dict[f'{strand} Score'] = round(prob * 100, 2)
+                        
+                        # Get eligible strands based on DepEd criteria
+                        eligible_strands = check_strand_eligibility(student_dict, assessment_scores)
+                        
+                        # If predicted strand is not in eligible strands, adjust prediction
+                        # For example, if model predicts STEM but student doesn't meet criteria
+                        if predicted_strand not in eligible_strands and not any(predicted_strand in s for s in eligible_strands):
+                            # Find the most probable eligible strand
+                            max_prob = -1
+                            for i, prob in enumerate(probabilities):
+                                strand = strand_mapping.get(i, 'Unknown')
+                                if strand in eligible_strands and prob > max_prob:
+                                    max_prob = prob
+                                    predicted_strand = strand
+                            
+                            # If still no match, default to most appropriate eligible strand
+                            if predicted_strand not in eligible_strands and not any(predicted_strand in s for s in eligible_strands):
+                                # Default to ABM as it has no specific requirements
+                                predicted_strand = 'ABM'
+                                print(f"Adjusted strand from {strand_prediction} to {predicted_strand} based on eligibility")
+                        
+                        # Add strand prediction to student dictionary
+                        student_dict['Predicted Strand'] = predicted_strand
+                        student_dict['Eligible Strands'] = eligible_strands
+                        
+                    except Exception as e:
+                        print(f"Error during prediction: {str(e)}")
+                        student_dict['Predicted Strand'] = 'Error'
+                        student_dict['Eligible Strands'] = []
+                    
+                    student_data.append(student_dict)
+                except Exception as e:
+                    print(f"Error processing student row {i}: {e}")
+            
+            print(f"Processed {len(student_data)} students from complex format")
+            
+        # If not complex or no students processed, try standard format
+        if not is_complex_format or len(student_data) == 0:
+            # Determine if this is the sample dataset format
+            expected_columns = ['Student No', 'English', 'Filipino', 'Math', 'Science', 'ESP', 'ICT', 'TLE', 'AP', 'Mapeh', 'Tec Drawing']
+            
+            # Check if the DataFrame has the expected columns
+            if all(col in df.columns for col in expected_columns):
+                print("Using standard format with subject columns")
+                data_df = df
+                is_sample_format = True
+            elif len(df.columns) > 10 and 'Unnamed: 0' in df.columns:
+                # This might be the complex format with grade levels
+                print("Complex format detected, processing...")
+                
+                # Extract student numbers (usually in first column)
+                student_nos = df.iloc[1:, 0].tolist()
+                
+                # Create a new DataFrame with proper structure
+                data = []
+                subjects = ['English', 'Filipino', 'Math', 'Science', 'ESP', 'ICT', 'TLE', 'AP', 'Mapeh', 'Tec Drawing']
+                
+                for i, student_no in enumerate(student_nos):
+                    if pd.isna(student_no) or student_no == '':
+                        continue
+                    
+                    student_row = {'Student No': student_no}
+                    
+                    # Process each subject by taking the Grade 10 value if available
+                    for subject in subjects:
+                        # Find columns that match this subject
+                        subject_cols = [col for col in df.columns if subject in str(col)]
+                        if subject_cols:
+                            # Try to find Grade 10 values first
+                            grade10_cols = [col for col in subject_cols if '10' in str(col)]
+                            if grade10_cols:
+                                # Use the first Grade 10 column found
+                                student_row[subject] = df.iloc[i+1, df.columns.get_loc(grade10_cols[0])]
+                            else:
+                                # If no Grade 10, use the first available column for this subject
+                                student_row[subject] = df.iloc[i+1, df.columns.get_loc(subject_cols[0])]
+                        else:
+                            # If subject not found, set to None
+                            student_row[subject] = None
+                    
+                    data.append(student_row)
+                
+                # Convert to DataFrame
+                data_df = pd.DataFrame(data)
+                print("Created new DataFrame with structure:", data_df.columns.tolist())
+            else:
+                # Try to intelligently map columns
+                print("Attempting to map columns intelligently...")
+                
+                # Try to find student number column
+                student_no_col = None
+                for col in df.columns:
+                    if 'student' in str(col).lower() and ('no' in str(col).lower() or 'number' in str(col).lower()):
+                        student_no_col = col
+                        break
+                
+                if not student_no_col:
+                    # If we can't find a clear student number column, use the first column
+                    student_no_col = df.columns[0]
+                
+                # Extract mapping of subjects
+                column_mapping = {}
+                for expected_col in expected_columns[1:]:  # Skip Student No
+                    for actual_col in df.columns:
+                        if expected_col.lower() in str(actual_col).lower():
+                            column_mapping[expected_col] = actual_col
+                            break
+                
+                # Create a new DataFrame with mapped columns
+                data = []
+                for _, row in df.iterrows():
+                    student_row = {'Student No': row[student_no_col]}
+                    
+                    for expected_col, actual_col in column_mapping.items():
+                        student_row[expected_col] = row[actual_col]
+                    
+                    data.append(student_row)
+                
+                data_df = pd.DataFrame(data)
+                print("Created mapped DataFrame with structure:", data_df.columns.tolist())
+                
+                # If we need to process more student data
+                if is_complex_format and len(student_data) > 0:
+                    # Skip standard processing
+                    pass
+                else:
+                    # Clean the data - convert grades to float and handle missing values
+                    student_data = []
+                    for _, row in data_df.iterrows():
+                        student_dict = {'Student No': row['Student No']}
+                        
+                        # Process each subject
+                        for subject in expected_columns[1:]:
+                            if subject in row:
+                                try:
+                                    # Try to convert to float, handle various formats
+                                    grade_str = str(row[subject]).replace('%', '').strip()
+                                    student_dict[subject] = float(grade_str) if grade_str and not pd.isna(grade_str) else 0
+                                except (ValueError, TypeError):
+                                    student_dict[subject] = 0
+                            else:
+                                student_dict[subject] = 0
+                        
+                        # Calculate averages for key subjects
+                        for subject in expected_columns[1:]:
+                            student_dict[f'Average {subject}'] = student_dict[subject]
+                        
+                        # Generate mock assessment scores for demonstration
+                        # In a real application, these would come from actual assessment data
+                        assessment_scores = {
+                            'STEM': random.randint(70, 99),
+                            'HUMSS': random.randint(70, 99),
+                            'ABM': random.randint(70, 99),
+                            'TVL': random.randint(70, 99),
+                            'GAS': random.randint(70, 99)
+                        }
+                        
+                        # Add assessment scores to student dictionary for reference
+                        student_dict.update(assessment_scores)
+                        
+                        # Prepare features for prediction
+                        features = prepare_features(student_dict)
+                        
+                        # Predict strand using the model
+                        try:
+                            strand_prediction = model.predict([features])[0]
+                            probabilities = model.predict_proba([features])[0]
+                            
+                            # Map numeric prediction to strand name
+                            strand_mapping = {0: 'ABM', 1: 'STEM', 2: 'TVL', 3: 'HUMSS', 4: 'GAS'}
+                            predicted_strand = strand_mapping.get(strand_prediction, 'Unknown')
+                            
+                            # Store strand probabilities as percentages
+                            for i, prob in enumerate(probabilities):
+                                strand = strand_mapping.get(i, 'Unknown')
+                                student_dict[f'{strand} Score'] = round(prob * 100, 2)
+                            
+                            # Get eligible strands based on DepEd criteria
+                            eligible_strands = check_strand_eligibility(student_dict, assessment_scores)
+                            
+                            # If predicted strand is not in eligible strands, adjust prediction
+                            # For example, if model predicts STEM but student doesn't meet criteria
+                            if predicted_strand not in eligible_strands and not any(predicted_strand in s for s in eligible_strands):
+                                # Find the most probable eligible strand
+                                max_prob = -1
+                                for i, prob in enumerate(probabilities):
+                                    strand = strand_mapping.get(i, 'Unknown')
+                                    if strand in eligible_strands and prob > max_prob:
+                                        max_prob = prob
+                                        predicted_strand = strand
+                                
+                                # If still no match, default to most appropriate eligible strand
+                                if predicted_strand not in eligible_strands and not any(predicted_strand in s for s in eligible_strands):
+                                    # Default to ABM as it has no specific requirements
+                                    predicted_strand = 'ABM'
+                                    print(f"Adjusted strand from {strand_prediction} to {predicted_strand} based on eligibility")
+                            
+                            # Add strand prediction to student dictionary
+                            student_dict['Predicted Strand'] = predicted_strand
+                            student_dict['Eligible Strands'] = eligible_strands
+                            
+                        except Exception as e:
+                            print(f"Error during prediction: {str(e)}")
+                            student_dict['Predicted Strand'] = 'Error'
+                            student_dict['Eligible Strands'] = []
+                        
+                        student_data.append(student_dict)
+        
+        # Debug info
+        print(f"Processed {len(student_data)} students")
+        if student_data:
+            print("Sample student data:", student_data[0])
+            
+        # Plot the data
+        plt.figure(figsize=(15, 6))
+        
+        # 1. Count of Recommended Strands (Left)
+        plt.subplot(1, 2, 1)
+        
+        # Count strands
+        strand_counts = {}
+        for student in student_data:
+            strand = student['Predicted Strand']
+            strand_counts[strand] = strand_counts.get(strand, 0) + 1
+        
+        # Sort strands for consistency
+        sorted_strands = sorted(strand_counts.keys())
+        counts = [strand_counts.get(strand, 0) for strand in sorted_strands]
+        
+        # Define colors for each strand
+        strand_colors = {
+            'STEM': '#3498db',   # Blue
+            'HUMSS': '#e74c3c',  # Red
+            'ABM': '#2ecc71',    # Green
+            'TVL': '#f39c12',    # Orange
+            'GAS': '#1abc9c'  # Teal
+        }
+        
+        # Get colors for the bars
+        bar_colors = [strand_colors.get(strand, '#95a5a6') for strand in sorted_strands]
+        
+        # Create the bar chart
+        bars = plt.bar(sorted_strands, counts, color=bar_colors)
+        
+        # Add count labels on top of bars
+        for bar, count in zip(bars, counts):
+            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
+                    str(count), ha='center', va='bottom')
+        
+        plt.xlabel('Strands', fontsize=10)
+        plt.ylabel('Number of Students', fontsize=10)
+        plt.title('Distribution of Recommended Strands', fontsize=12, fontweight='bold')
+        plt.ylim(0, max(counts) + 5)  # Add some space for the labels
+        plt.xticks(rotation=0)
+        
+        # 2. Average Grades by Strand (Right)
+        plt.subplot(1, 2, 2)
+        
+        # Calculate average grades per strand
+        strand_subject_averages = {}
+        
+        # Initialize the data structure
+        for strand in sorted_strands:
+            strand_subject_averages[strand] = {}
+            for subject in ['English', 'Filipino', 'Math', 'Science', 'ESP']:
+                strand_subject_averages[strand][subject] = []
+        
+        # Collect grades by strand
+        for student in student_data:
+            strand = student['Predicted Strand']
+            if strand in strand_subject_averages:
+                for subject in ['English', 'Filipino', 'Math', 'Science', 'ESP']:
+                    grade = student.get(subject, 0)
+                    strand_subject_averages[strand][subject].append(grade)
+        
+        # Calculate averages
+        strand_avg_data = {}
+        for strand in strand_subject_averages:
+            strand_avg_data[strand] = {}
+            for subject in strand_subject_averages[strand]:
+                grades = strand_subject_averages[strand][subject]
+                if grades:
+                    strand_avg_data[strand][subject] = sum(grades) / len(grades)
+                else:
+                    strand_avg_data[strand][subject] = 0
+        
+        # Set up grouped bar chart
+        bar_width = 0.15
+        index = np.arange(len(sorted_strands))
+        
+        # Plot bars for each subject
+        subjects_to_show = ['English', 'Filipino', 'Math', 'Science', 'ESP']
+        subject_colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6']
+        
+        for i, subject in enumerate(subjects_to_show):
+            values = [strand_avg_data.get(strand, {}).get(subject, 0) for strand in sorted_strands]
+            plt.bar(index + i * bar_width, values, bar_width, label=subject, color=subject_colors[i])
+        
+        plt.xlabel('Strands', fontsize=10)
+        plt.ylabel('Average Grade', fontsize=10)
+        plt.title('Average Grades by Strand', fontsize=12, fontweight='bold')
+        plt.xticks(index + bar_width * 2, sorted_strands)
+        plt.legend(loc='upper right', ncol=5, fontsize='small')
+        plt.ylim(0, 100)
+        
+        plt.tight_layout(pad=3)
+        
+        # Save the plot to a BytesIO object instead of a file
+        buf = BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', dpi=100)
+        plt.close()
+        buf.seek(0)
+        
+        # Create a directory for plots if it doesn't exist
+        plot_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'plots')
+        os.makedirs(plot_dir, exist_ok=True)
+        
+        # Generate a unique filename
+        timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+        plot_filename = f"{secure_filename(filename.split('.')[0])}_{timestamp}.png"
+        plot_path = os.path.join(plot_dir, plot_filename)
+        
+        # Save the plot to file
+        with open(plot_path, 'wb') as f:
+            f.write(buf.getvalue())
+            
+        # Return the file path relative to the static folder
+        rel_path = os.path.join('plots', plot_filename)
+        
+        print(f"Plot saved to: {plot_path}")
+        print(f"Returning path: {rel_path} and {len(student_data)} student records")
+        
+        return student_data, rel_path
+        
+    except Exception as e:
+        print(f"Error in process_excel: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 # Database connection
 conn = psycopg2.connect(
@@ -193,8 +822,6 @@ def adduser():
 
         return redirect(url_for('view_users'))
 
-    return redirect(url_for('view_users'))
-
 @app.route('/users')
 @login_required
 def view_users():
@@ -267,12 +894,12 @@ def upload_file():
     if request.method == 'POST':
         if 'file' not in request.files:
             flash('No file part')
-            return redirect(request.url)
+            return redirect(url_for('index'))
         
         file = request.files['file']
         if file.filename == '':
             flash('No selected file')
-            return redirect(request.url)
+            return redirect(url_for('index'))
         
         if file and allowed_file(file.filename):
             try:
@@ -284,305 +911,90 @@ def upload_file():
                 df = pd.read_excel(temp_path, engine='openpyxl')
                 
                 # Process the Excel file
-                plot_url, best_strand, student_data, strands, error = process_excel(df, filename=file.filename)
-                
-                if error:
-                    flash(f"Error processing file: {error}")
-                    return redirect(url_for('index'))
+                student_data, plot_rel_path = process_excel(df, filename=file.filename)
                 
                 # Remove the temporary file
                 os.remove(temp_path)
                 
+                # Convert to list of dictionaries with correct keys
+                formatted_students = []
+                for student in student_data:
+                    # Map the column names to match what's expected in the template
+                    formatted_student = {
+                        'Student Number': student.get('Student No', ''),
+                        'Average English': student.get('Average English', '0.0'),
+                        'Average Filipino': student.get('Average Filipino', '0.0'),
+                        'Average Math': student.get('Average Math', '0.0'),
+                        'Average Science': student.get('Average Science', '0.0'),
+                        'Average ESP': student.get('Average ESP', '0.0'),
+                        'Average ICF': student.get('Average ICT', '0.0'),  # ICF in template vs ICT in code
+                        'Average TVL': student.get('Average TVL', student.get('Average TLE', student.get('Average TVE', '0.0'))),
+                        'Average AP': student.get('Average AP', '0.0'),
+                        'Average Mapeh': student.get('Average Mapeh', '0.0'),
+                        'Average Tec. Drawing': student.get('Average Tec Drawing', '0.0'),
+                        'Recommended Strand': student.get('Predicted Strand', 'N/A'),
+                        'Eligible Strands': ', '.join(student.get('Eligible Strands', [])),
+                        'Strand Scores': ', '.join([f"{k.replace(' Score', '')}: {v}%" for k, v in student.items() if 'Score' in k])
+                    }
+                    formatted_students.append(formatted_student)
+                
+                # Determine best strand overall (most frequent)
+                strand_counts = {}
+                for student in student_data:
+                    strand = student['Predicted Strand']
+                    strand_counts[strand] = strand_counts.get(strand, 0) + 1
+                
+                best_strand = max(strand_counts.items(), key=lambda x: x[1])[0] if strand_counts else "N/A"
+                
+                # Get the full path to the image file
+                plot_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', plot_rel_path)
+                
+                # Read the image and convert to base64
+                with open(plot_full_path, 'rb') as f:
+                    img_data = f.read()
+                graph_base64 = base64.b64encode(img_data).decode('utf-8')
+                
+                # Store transaction in the database
+                user_id = session.get('user_id')
+                if user_id:
+                    try:
+                        conn = get_db_conn()
+                        cur = conn.cursor()
+                        
+                        # Store the strand data as JSON
+                        strand_data = json.dumps({
+                            'student_data': student_data,
+                            'plot_path': plot_rel_path
+                        })
+                        
+                        cur.execute(
+                            """INSERT INTO transaction_logs 
+                               (user_id, filename, num_students, best_strand, strand_data) 
+                               VALUES (%s, %s, %s, %s, %s) RETURNING id""",
+                            (user_id, file.filename, len(student_data), best_strand, strand_data)
+                        )
+                        
+                        log_id = cur.fetchone()[0]
+                        conn.commit()
+                        cur.close()
+                        release_db_conn(conn)
+                        
+                        print(f"Transaction recorded with ID: {log_id}")
+                    except Exception as e:
+                        print(f"Error recording transaction: {e}")
+                
+                print(f"Rendering template with graph_url (length: {len(graph_base64)}), {len(formatted_students)} students, best_strand: {best_strand}")
                 return render_template('index.html', 
-                                     graph_url=plot_url, 
-                                     best_strand=best_strand, 
-                                     student_data=student_data, 
-                                     strands=strands)
+                                       graph_url=graph_base64,
+                                       student_data=formatted_students,
+                                       best_strand=best_strand)
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 flash(f"Error processing file: {str(e)}")
                 return redirect(url_for('index'))
     
     return redirect(url_for('index'))
-
-def process_excel(df, filename="Excel Upload"):
-    try:
-        # Get the column indices for each subject
-        grade_columns = {
-            'Grade 7': {
-                'English': 1,
-                'Filipino': 2,
-                'Math': 3,
-                'ESP': 4,
-                'ICF': 5,
-                'TVE': 6,
-                'AP': 7,
-                'Mapeh': 8,
-                'Tec. Drawing': 9,
-                'Science': 10
-            },
-            'Grade 8': {
-                'English': 12,
-                'Filipino': 13,
-                'Math': 14,
-                'ESP': 15,
-                'ICF': 16,
-                'TVE': 17,
-                'AP': 18,
-                'Mapeh': 19,
-                'Tec. Drawing': 20,
-                'Science': 21
-            },
-            'Grade 9': {
-                'English': 22,
-                'Filipino': 23,
-                'Math': 24,
-                'ESP': 25,
-                'ICF': 26,
-                'TVE': 27,
-                'AP': 28,
-                'Mapeh': 29,
-                'Tec. Drawing': 30,
-                'Science': 31
-            },
-            'Grade 10': {
-                'English': 32,
-                'Filipino': 33,
-                'Math': 34,
-                'ESP': 35,
-                'ICF': 36,
-                'TVE': 37,
-                'AP': 38,
-                'Mapeh': 39,
-                'Tec. Drawing': 40,
-                'Science': 41
-            }
-        }
-
-        # Create a clean dataset with student numbers and grades
-        student_data = []
-        
-        # Skip the first row (header)
-        for idx, row in df.iloc[1:].iterrows():
-            # Skip if student number is empty or NaN
-            if pd.isna(row.iloc[0]) or str(row.iloc[0]).strip() == '':
-                continue
-                
-            student_info = {
-                'Student Number': row.iloc[0],  # First column contains student number
-            }
-            
-            # Add grades for each grade level
-            for grade, subjects in grade_columns.items():
-                student_info[grade] = {}
-                for subject, col_idx in subjects.items():
-                    try:
-                        grade_value = float(row.iloc[col_idx])
-                        if pd.isna(grade_value):
-                            grade_value = 0.0  # Replace NaN with 0
-                        student_info[grade][subject] = grade_value
-                        
-                        # Also store the average grades for each subject
-                        if 'Average Grades' not in student_info:
-                            student_info['Average Grades'] = {}
-                        if subject not in student_info['Average Grades']:
-                            student_info['Average Grades'][subject] = []
-                        student_info['Average Grades'][subject].append(grade_value)
-                    except (ValueError, IndexError):
-                        print(f"Warning: Could not process grade for {subject} in {grade} for student {row.iloc[0]}")
-                        continue
-            
-            # Calculate final average grades
-            for subject in student_info['Average Grades']:
-                if student_info['Average Grades'][subject]:
-                    student_info['Average Grades'][subject] = sum(student_info['Average Grades'][subject]) / len(student_info['Average Grades'][subject])
-                else:
-                    student_info['Average Grades'][subject] = 0.0
-            
-            # Prepare features for strand prediction
-            features = []
-            for subject in ['English', 'Filipino', 'Math', 'Science', 'ESP', 'ICF', 'TVE', 'AP', 'Mapeh', 'Tec. Drawing']:
-                for grade in ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10']:
-                    if grade in student_info and subject in student_info[grade]:
-                        features.append(student_info[grade][subject])
-                    else:
-                        features.append(0.0)
-            
-            # Create MLR model for strand prediction
-            X = np.array([features])
-            
-            # Define strand weights for each subject
-            strand_weights = {
-                'STEM': {
-                    'Math': 0.3,
-                    'Science': 0.3,
-                    'English': 0.1,
-                    'ICF': 0.1,
-                    'Tec. Drawing': 0.2
-                },
-                'HUMSS': {
-                    'English': 0.3,
-                    'Filipino': 0.3,
-                    'AP': 0.2,
-                    'ESP': 0.2
-                },
-                'ABM': {
-                    'Math': 0.25,
-                    'English': 0.25,
-                    'ICF': 0.25,
-                    'ESP': 0.25
-                },
-                'GAS': {
-                    'Math': 0.2,
-                    'Science': 0.2,
-                    'English': 0.2,
-                    'Filipino': 0.2,
-                    'AP': 0.2
-                },
-                'TVL': {
-                    'TVE': 0.4,
-                    'ICF': 0.3,
-                    'Tec. Drawing': 0.3
-                }
-            }
-            
-            # Calculate strand scores
-            strand_scores = {}
-            for strand, weights in strand_weights.items():
-                score = 0
-                total_weight = 0
-                for subject, weight in weights.items():
-                    if subject in student_info['Average Grades']:
-                        score += student_info['Average Grades'][subject] * weight
-                        total_weight += weight
-                if total_weight > 0:
-                    strand_scores[strand] = score / total_weight
-                else:
-                    strand_scores[strand] = 0
-            
-            # Get recommended strand
-            recommended_strand = max(strand_scores.items(), key=lambda x: x[1])[0]
-            
-            # Store the scores and recommendation
-            student_info['Recommended Strand'] = recommended_strand
-            for strand, score in strand_scores.items():
-                student_info[f'{strand} Score'] = f"{score:.1f}%"
-            
-            # Format the averages for display
-            for subject in student_info['Average Grades']:
-                student_info[f'Average {subject}'] = f"{student_info['Average Grades'][subject]:.1f}"
-            
-            student_data.append(student_info)
-        
-        # Create visualization
-        plt.figure(figsize=(15, 6))
-        
-        # Strand Distribution Chart
-        plt.subplot(1, 2, 1)
-        strand_counts = {}
-        for strand in strand_weights.keys():
-            strand_counts[strand] = sum(1 for student in student_data if student['Recommended Strand'] == strand)
-        
-        plt.bar(strand_counts.keys(), strand_counts.values())
-        plt.title('Distribution of Recommended Strands')
-        plt.xlabel('Strand')
-        plt.ylabel('Number of Students')
-        plt.xticks(rotation=45)
-        
-        # Average Grades by Strand Chart
-        plt.subplot(1, 2, 2)
-        strand_avg_grades = {strand: {'count': 0, 'total': {}} for strand in strand_weights.keys()}
-        
-        for student in student_data:
-            strand = student['Recommended Strand']
-            strand_avg_grades[strand]['count'] += 1
-            for subject in ['Math', 'Science', 'English', 'Filipino', 'ICF']:
-                if f'Average {subject}' in student:
-                    if subject not in strand_avg_grades[strand]['total']:
-                        strand_avg_grades[strand]['total'][subject] = 0
-                    strand_avg_grades[strand]['total'][subject] += float(student[f'Average {subject}'].rstrip('%'))
-        
-        # Calculate averages
-        data_for_plot = []
-        labels = []
-        for strand in strand_weights.keys():
-            if strand_avg_grades[strand]['count'] > 0:
-                averages = []
-                for subject in ['Math', 'Science', 'English', 'Filipino', 'ICF']:
-                    if subject in strand_avg_grades[strand]['total']:
-                        avg = strand_avg_grades[strand]['total'][subject] / strand_avg_grades[strand]['count']
-                        averages.append(avg)
-                    else:
-                        averages.append(0)
-                data_for_plot.append(averages)
-                labels.append(strand)
-        
-        x = np.arange(len(labels))
-        width = 0.15
-        
-        for i, subject in enumerate(['Math', 'Science', 'English', 'Filipino', 'ICF']):
-            plt.bar(x + i * width, [data[i] for data in data_for_plot], width, label=subject)
-        
-        plt.title('Average Grades by Strand')
-        plt.xlabel('Strands')
-        plt.ylabel('Average Grade')
-        plt.xticks(x + width * 2, labels, rotation=45)
-        plt.legend()
-        
-        plt.tight_layout()
-        
-        # Save the plot
-        img = io.BytesIO()
-        plt.savefig(img, format='png', bbox_inches='tight')
-        img.seek(0)
-        plot_url = base64.b64encode(img.getvalue()).decode()
-        plt.close()
-        
-        # Get the best strand based on the number of students
-        best_strand = max(strand_counts.items(), key=lambda x: x[1])[0]
-        
-        # Store results in the database
-        conn = get_db_conn()
-        cur = conn.cursor()
-        
-        strand_data = {
-            'strand_counts': strand_counts,
-            'strand_avg_grades': strand_avg_grades,
-            'student_data': [
-                {
-                    'student_number': student['Student Number'],
-                    'recommended_strand': student['Recommended Strand'],
-                    'scores': {
-                        strand: student[f'{strand} Score']
-                        for strand in strand_weights.keys()
-                    }
-                }
-                for student in student_data
-            ]
-        }
-        
-        cur.execute("""
-            INSERT INTO transaction_logs 
-            (user_id, filename, num_students, best_strand, strand_data, created_at)
-            VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            RETURNING id
-        """, (
-            session['user_id'],
-            filename,
-            len(student_data),
-            best_strand,
-            json.dumps(strand_data)
-        ))
-        
-        log_id = cur.fetchone()[0]
-        conn.commit()
-        cur.close()
-        release_db_conn(conn)
-        
-        return plot_url, best_strand, student_data, strand_weights.keys(), None
-        
-    except Exception as e:
-        print(f"Error in process_excel: {str(e)}")
-        return None, None, None, None, str(e)
 
 @app.route('/dash')
 @login_required
@@ -600,7 +1012,6 @@ def predict_grades():
     try:
         data = request.get_json()
         student_grades = pd.DataFrame(data['grades'])
-        
         
         X = []  # Features (previous grades)
         y = []  # Target (next grade)

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120" viewBox="0 0 400 120">
+  <!-- DepEd text -->
+  <text x="20" y="60" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#005baa">Dep</text>
+  <text x="130" y="60" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#e11b22">ED</text>
+  
+  <!-- Torch symbol (simplified) -->
+  <rect x="105" y="20" width="20" height="40" fill="#005baa" />
+  <path d="M105,20 Q115,0 125,20" fill="#e11b22" stroke="none" />
+  <path d="M110,15 Q115,5 120,15" fill="#ffd100" stroke="none" />
+  
+  <!-- Department of Education text -->
+  <text x="20" y="100" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#005baa">DEPARTMENT OF EDUCATION</text>
+</svg>

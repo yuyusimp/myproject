@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DepEd Logo Generator</title>
+    <style>
+        .deped-logo {
+            width: 300px;
+            height: 300px;
+            background-color: #0038a8;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            border: 10px solid #fcd116;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            position: relative;
+            margin: 50px auto;
+        }
+        
+        .title {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            font-size: 18px;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .symbol {
+            font-size: 64px;
+            margin-bottom: 10px;
+        }
+        
+        .instructions {
+            margin: 20px;
+            font-family: Arial, sans-serif;
+            line-height: 1.5;
+        }
+        
+        button {
+            background: #0038a8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            display: block;
+            margin: 20px auto;
+        }
+        
+        button:hover {
+            background: #002a80;
+        }
+    </style>
+</head>
+<body>
+    <div class="deped-logo" id="depedLogo">
+        <div class="symbol">📚</div>
+        <div class="title">DepEd</div>
+        <div class="subtitle">Department of Education</div>
+        <div class="subtitle">Republic of the Philippines</div>
+    </div>
+    
+    <div class="instructions">
+        <p>1. Right-click on the logo above</p>
+        <p>2. Select "Save image as..."</p>
+        <p>3. Save as "deped_logo.png" in the static folder</p>
+        <p>4. Or use the button below to download:</p>
+    </div>
+    
+    <button id="downloadBtn">Download DepEd Logo</button>
+    
+    <script>
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            // Create a canvas element
+            const canvas = document.createElement('canvas');
+            const logo = document.getElementById('depedLogo');
+            const width = logo.offsetWidth;
+            const height = logo.offsetHeight;
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Draw background
+            ctx.fillStyle = '#0038a8';
+            ctx.beginPath();
+            ctx.arc(width/2, height/2, width/2 - 10, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw border
+            ctx.strokeStyle = '#fcd116';
+            ctx.lineWidth = 20;
+            ctx.beginPath();
+            ctx.arc(width/2, height/2, width/2 - 20, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Draw text
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 32px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('DepEd', width/2, height/2);
+            
+            ctx.font = '18px Arial';
+            ctx.fillText('Department of Education', width/2, height/2 + 30);
+            ctx.fillText('Republic of the Philippines', width/2, height/2 + 60);
+            
+            // Draw book symbol
+            ctx.font = '64px Arial';
+            ctx.fillText('📚', width/2, height/2 - 40);
+            
+            // Convert to PNG
+            const dataURL = canvas.toDataURL('image/png');
+            
+            // Create download link
+            const a = document.createElement('a');
+            a.href = dataURL;
+            a.download = 'deped_logo.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+    </script>
+</body>
+</html>
